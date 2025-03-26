@@ -12,14 +12,26 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-
+import java.util.HashMap;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Map;
+import java.util.logging.Logger;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.logging.Logger;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.LineIterator;
 import org.apache.http.HttpEntity;
@@ -55,41 +67,41 @@ public class SampleCrawlerPlugin implements CrawlerPlugin {
         logger.info(String.format("Processing document: %s", crawlUrl));
 
         // Exclude confidential documents
-        if (document.getCrawlUrl().contains("confidential")) {
-            document.setExclude(true);
-            document.getNoticeMessages().add(String.format("The document %s is excluded by the crawler plugin.", crawlUrl));
-            return;
-        }
+        // if (document.getCrawlUrl().contains("confidential")) {
+        //     document.setExclude(true);
+        //     document.getNoticeMessages().add(String.format("The document %s is excluded by the crawler plugin.", crawlUrl));
+        //     return;
+        // }
 
         // Get the fields of this crawled document
         Map<String, Object> fields = document.getFields();
 
         // Process file name field
-        Object fileNameField = fields.get("_$FileName$_");
-        if (fileNameField != null) {
-            fields.put("_$FileName$_", fileNameField.toString().replace("ibm", "IBM"));
-        }
+        // Object fileNameField = fields.get("_$FileName$_");
+        // if (fileNameField != null) {
+        //     fields.put("_$FileName$_", fileNameField.toString().replace("ibm", "IBM"));
+        // }
 
         // Add or update the current_date field
-        fields.put("current_date", new Date());
+        // fields.put("current_date", new Date());
 
         // Remove file size field if present
-        fields.remove("_$FileSize$_");
+        // fields.remove("_$FileSize$_");
 
         // Process authors field
-        Object authorField = fields.get("_$Authors$_");
-        if (authorField != null) {
-            List<String> authorList = authorField instanceof List<?> 
-                ? (List<String>) authorField 
-                : Arrays.asList((String) authorField);
+        // Object authorField = fields.get("_$Authors$_");
+        // if (authorField != null) {
+        //     List<String> authorList = authorField instanceof List<?> 
+        //         ? (List<String>) authorField 
+        //         : Arrays.asList((String) authorField);
 
-            authorList = authorList.stream()
-                .map(String::toLowerCase)
-                .filter(author -> !author.equals("tom@ibm.com"))
-                .collect(Collectors.toList());
+        //     authorList = authorList.stream()
+        //         .map(String::toLowerCase)
+        //         .filter(author -> !author.equals("tom@ibm.com"))
+        //         .collect(Collectors.toList());
 
-            fields.put("_$Authors$_", authorList);
-        }
+        //     fields.put("_$Authors$_", authorList);
+        // }
 
         // Process UpdatedDate field and create formatDate field
         Object updatedDateField = fields.get("updateddate");
@@ -97,21 +109,42 @@ public class SampleCrawlerPlugin implements CrawlerPlugin {
             String updatedDate = updatedDateField.toString();
             String formatDate;
 
-            if (!updatedDate.contains(",")) {
+            if (!updatedDate.contains(".")) {
                 formatDate = updatedDate.split(" ")[0]; // Get part before space
             } else {
-                formatDate = updatedDate.split(",")[0]; // Get part before comma
+                formatDate = updatedDate.split(".")[0]; // Get part before comma
             }
 
             // Add formatDate field while keeping original UpdatedDate
             fields.put("formatDate", formatDate);
         }
 
-        // Code Logic to copy "formatDate" to "updateddatesec"
-        Object formatDateField = fields.get("formatDate");
-        if (formatDateField != null) {
-        fields.put("updateddatesec", formatDateField); // Simply copy the value
+        // Retrieve the "formatDate" field
+    Object formatDateField = fields.get("formatDate");
+
+    if (formatDateField != null) {
+        String formatDateStr = formatDateField.toString(); // Keep original value
+
+        // Store original field
+        fields.put("formatDate", formatDateStr);
+
+        // Convert "formatDate" to epoch timestamp
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        dateFormat.setLenient(false);
+        try {
+            Date parsedDate = dateFormat.parse(formatDateStr);
+            long epochTime = parsedDate.getTime() / 1000; // Convert to seconds
+            
+            // Store epoch timestamp in "updateddatesec"
+            fields.put("updateddatesec", epochTime);
+            
+            logger.info("Converted formatDate to epoch: " + epochTime);
+        } catch (ParseException e) {
+            logger.warning("Failed to parse formatDate: " + formatDateStr);
         }
+    }
+
+      
         
          // Code Logic to copy "effDate" to "effDateSec"
         Object formatEffDateField = fields.get("effDate");
@@ -119,123 +152,144 @@ public class SampleCrawlerPlugin implements CrawlerPlugin {
          fields.put("effDateSec", formatEffDateField); // Simply copy the value
         }
 
-         // Retrieve "updateddatesec" field
+      // Retrieve "updateddatesec" field
     Object updatedDateSecField = fields.get("updateddatesec");
 
     if (updatedDateSecField != null) {
-        String originalDateStr = updatedDateSecField.toString(); // Keep original format
-        fields.put("updateddatesec", originalDateStr); // Retain original value
+        try {
+            // Convert updateddatesec from String/Number to long
+            long epochTime = Long.parseLong(updatedDateSecField.toString());
 
-        // List of possible date formats to parse
-        String[] possibleFormats = {
-            "yyyy-MM-dd", "MM/dd/yyyy", "dd/MM/yyyy", "yyyy/MM/dd",
-            "MMM dd, yyyy", "dd-MMM-yyyy", "EEE, dd MMM yyyy HH:mm:ss z"
-        };
+            // Convert epoch time to MM-dd-yyyy format
+            SimpleDateFormat outputFormat = new SimpleDateFormat("MM-dd-yyyy");
+            outputFormat.setTimeZone(TimeZone.getTimeZone("UTC")); // Ensure consistency in time zone
+            String formattedDate = outputFormat.format(new Date(epochTime * 1000)); // Convert to milliseconds
 
-        Date parsedDate = null;
+            // Store in lastupdateddate while retaining updateddatesec
+            fields.put("lastupdateddate", formattedDate);
+            logger.info("Converted updateddatesec: " + epochTime + " to lastupdateddate: " + formattedDate);
 
-        // Try parsing with different formats
-        for (String format : possibleFormats) {
-            try {
-                SimpleDateFormat inputFormat = new SimpleDateFormat(format);
-                inputFormat.setLenient(false);
-                parsedDate = inputFormat.parse(originalDateStr);
-                break; // Stop when parsing succeeds
-            } catch (ParseException ignored) {
-                // Try the next format
-            }
-        }
-
-        // If parsed successfully, format it to "MM/dd/yyyy"
-        if (parsedDate != null) {
-            SimpleDateFormat outputFormat = new SimpleDateFormat("MM/dd/yyyy");
-            fields.put("lastupdateddate", outputFormat.format(parsedDate));
-        } else {
-            // Log or handle the error when parsing fails
-            logger.warning("Failed to parse date: " + originalDateStr);
+        } catch (NumberFormatException e) {
+            logger.warning("Invalid epoch format for updateddatesec: " + updatedDateSecField);
         }
     }
     
-          // Retrieve "effDateSec" field
-        Object effDateSecField = fields.get("effDateSec");
+       // Retrieve "effDateSec" field
+    Object effDateSecField = fields.get("effDateSec");
 
-        if (effDateSecField != null) {
-              String originalEffDateStr = effDateSecField.toString(); // Keep original format
-            fields.put("effDateSec", originalEffDateStr); // Retain original value
-              // List of possible date formats to parse
-            String[] possibleFormats1 = {"yyyy-MM-dd", "MM/dd/yyyy", "dd/MM/yyyy", "yyyy/MM/dd",   "MMM dd, yyyy", "dd-MMM-yyyy", "EEE, dd MMM yyyy HH:mm:ss z" };
-            Date parsedDate1 = null;
-              // Try parsing with different formats
-            for (String format : possibleFormats1) { try {
-                    SimpleDateFormat inputFormat = new SimpleDateFormat(format);
-                    inputFormat.setLenient(false);
-                    parsedDate1 = inputFormat.parse(originalEffDateStr);
-                    break; // Stop when parsing succeeds
-                } catch (ParseException ignored) {
-                      // Try the next format
+    if (effDateSecField != null) {
+        try {
+            // Convert effDateSec from String/Number to long
+            long epochTime = Long.parseLong(effDateSecField.toString());
+
+            // Convert epoch time to dd/MM/yyyy format
+            SimpleDateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy");
+            outputFormat.setTimeZone(TimeZone.getTimeZone("UTC")); // Ensure consistency in time zone
+            String formattedDate = outputFormat.format(new Date(epochTime * 1000)); // Convert to milliseconds
+
+            // Store in effectivedatefilter while retaining effDateSec
+            fields.put("effectivedatefilter", formattedDate);
+            logger.info("Converted effDateSec: " + epochTime + " to effectivedatefilter: " + formattedDate);
+
+        } catch (NumberFormatException e) {
+            logger.warning("Invalid epoch format for effDateSec: " + effDateSecField);
+        }
+    }
+     //document-url field
+    Object urlField = fields.get("url");
+    Object contentField = fields.get("content"); // Assuming <content> is stored as "content"
+
+    if (urlField != null && contentField != null) {
+        String url = urlField.toString();
+        String documentUrl = null;
+
+        // Define the patterns to match
+        String[] urlPatterns = {
+            ".*ewdtpaovp11.*",
+            ".*ewdtpaovp01.*",
+            ".*ewdsacovn58.*",
+            ".*Ewdfdcovp11.*",
+            ".*ewdfdcovp11.*"
+        };
+
+        // Check if the URL matches any of the predefined patterns
+        for (String pattern : urlPatterns) {
+            if (Pattern.matches(pattern, url)) {
+                documentUrl = url; // If matched, store the URL in document-url
+
+                // Copy the entire content node structure
+                fields.put("document-content", contentField);
+                break;
             }
-              // If parsed successfully, format it to "MM/dd/yyyy"
-                if (parsedDate1 != null) {
-                    SimpleDateFormat outputFormat = new SimpleDateFormat("MM/dd/yyyy");
-                    fields.put("effectivedatefilter", outputFormat.format(parsedDate1));
-                    } else {
-                  // Log or handle the error when parsing fails
-                    // logger.warning("Failed to parse date: " + originalEffDateStr); 
-                    }  }
-  
-    // Extract EFFECTIVEDATE from the content field
+        }
+
+        // Add document-url field while keeping the original url field
+        fields.put("document-url", documentUrl);
+    }
+    // Retrieve the EFFECTIVEDATE field
     Object effectiveDateField = fields.get("EFFECTIVEDATE");
-    String effectiveDate = (effectiveDateField != null) ? effectiveDateField.toString() : "";
 
-    // Process the EFFECTIVEDATE similar to XSL logic
-    String effDate;
+    if (effectiveDateField != null) {
+        String effectiveDate = effectiveDateField.toString();
+        String effDate;
 
-    if (!effectiveDate.contains(".")) {
-        // If there is NO dot (.), take the part before the first space
-        int spaceIndex = effectiveDate.indexOf(" ");
-        effDate = (spaceIndex != -1) ? effectiveDate.substring(0, spaceIndex) : effectiveDate;
-    } else {
-        // If there IS a dot (.), take the part before the first dot
-        int dotIndex = effectiveDate.indexOf(".");
-        effDate = effectiveDate.substring(0, dotIndex);
-    }
+        if (!effectiveDate.contains(".")) {
+            effDate = effectiveDate.split(" ")[0]; // Get the part before the first space
+        } else {
+            effDate = effectiveDate.split("\\.")[0]; // Get the part before the first period
+        }
 
-    // Store the processed value in the document fields
-    fields.put("effDate", effDate);
-    logger.info("Processed Effective Date: " + effDate);
-
-     //
-
-    // Store "crawl-url"
-    if (crawlUrl != null && !crawlUrl.isEmpty()) {
-    // Create a new field "document-url" with the same value as "crawl-url"
-    fields.put("document-url", crawlUrl);
-    }
-
-    // Copy "document-url" to "vse-key"
-    Object documentUrlField = fields.get("document-url");
-    if (documentUrlField != null) {
-    fields.put("vse-key", documentUrlField);
-    }
-
-    // Set "vse-key-normalized" to "vse-key-normalized" (static value)
-    fields.put("vse-key-normalized", "vse-key-normalized");
-
-   // Ensure "content" is retained in the updated document structure
-    Object contentField = fields.get("content");
-    if (contentField != null) {
-    fields.put("content", contentField); // Retain original content
-    }
-
-
+        // Store the extracted date while retaining the original EFFECTIVEDATE field
+        fields.put("effDate", effDate);
+    } 
 
    // Process and store document title
-    Object docTitle = fields.get("docTitle"); // Assuming docTitle is already available
-    if (docTitle != null) {
-     fields.put("title", docTitle.toString()); // Store title
-     fields.put("title_weight", 4); // Store weight as metadata
-    logger.info("Document Title Processed: " + docTitle.toString());
-    }
+   Object docTitleField = fields.get("docTitle");
+if (docTitleField != null) {
+    String docTitle = docTitleField.toString();
+
+    // Add title field while keeping original docTitle
+    fields.put("title", docTitle);
+}
+
+//last-modified date
+Object lastUpdatedDateField = fields.get("lastupdateddate");
+if (lastUpdatedDateField != null) {
+    String lastUpdatedDate = lastUpdatedDateField.toString();
+
+    // Add last-modified field while keeping original lastupdateddate
+    fields.put("last-modified", lastUpdatedDate);
+}
+//xxrole field
+Object roleField = fields.get("role");
+if (roleField != null) {
+    String role = roleField.toString();
+
+    // Add xxrole field while keeping original role
+    fields.put("xxrole", role);
+}
+
+//xxbgorup field
+Object businessGroupField = fields.get("businessgroup");
+if (businessGroupField != null) {
+    String businessGroup = businessGroupField.toString();
+
+    // Add xxbgroup field while keeping original businessgroup
+    fields.put("xxbgroup", businessGroup);
+}
+// Creating a new field "enqueueurl" with crawl URL options
+Map<String, Object> enqueueUrl = new HashMap<>();
+
+// Adding curl options
+Map<String, String> curlOptions = new HashMap<>();
+curlOptions.put("default-allow", "allow");
+curlOptions.put("max-hops", "0");
+
+// Wrapping the curl options inside a crawl-url structure
+enqueueUrl.put("crawl-url", Collections.singletonMap("curl-options", curlOptions));
+
+// Storing the enqueueUrl field while retaining existing fields
+fields.put("enqueueurl", enqueueUrl);
 
         // Process document content
         CrawlerPluginContent content = document.getContent();
