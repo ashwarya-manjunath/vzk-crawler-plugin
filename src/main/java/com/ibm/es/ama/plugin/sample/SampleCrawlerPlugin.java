@@ -24,13 +24,11 @@ import java.util.Date;
 import java.util.HashMap;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Map;
 import java.util.logging.Logger;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Map;
 import java.util.TimeZone;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.logging.Logger;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.LineIterator;
@@ -46,6 +44,7 @@ import com.ibm.es.ama.plugin.CrawlerPluginConfiguration;
 import com.ibm.es.ama.plugin.CrawlerPluginContent;
 import com.ibm.es.ama.plugin.CrawlerPluginDocument;
 import com.ibm.es.ama.plugin.CrawlerPluginException;
+
 
 public class SampleCrawlerPlugin implements CrawlerPlugin {
 
@@ -103,276 +102,314 @@ public class SampleCrawlerPlugin implements CrawlerPlugin {
         //     fields.put("_$Authors$_", authorList);
         // }
 
-        // Process UpdatedDate field and create formatDate field
-        Object updatedDateField = fields.get("updateddate");
+        // "formatDate" field
+        Object updatedDateField = fields.get("lastupdateddate");
+
         if (updatedDateField != null) {
-            String updatedDate = updatedDateField.toString();
-            String formatDate;
+            try {
+                logger.info("Received lastupdateddate: " + updatedDateField);
 
-            if (!updatedDate.contains(".")) {
-                formatDate = updatedDate.split(" ")[0]; // Get part before space
-            } else {
-                formatDate = updatedDate.split(".")[0]; // Get part before comma
-            }
+                long epochTime = Long.parseLong(updatedDateField.toString()); // Convert epoch to long
+                String updatedDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(epochTime)); // Convert to formatted date
 
-            // Add formatDate field while keeping original UpdatedDate
-            fields.put("formatDate", formatDate);
-        }
+                logger.info("Converted epoch to formatted date: " + updatedDate);
 
-        // Retrieve the "formatDate" field
-    Object formatDateField = fields.get("formatDate");
-
-    if (formatDateField != null) {
-        String formatDateStr = formatDateField.toString(); // Keep original value
-
-        // Store original field
-        fields.put("formatDate", formatDateStr);
-
-        // Convert "formatDate" to epoch timestamp
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        dateFormat.setLenient(false);
-        try {
-            Date parsedDate = dateFormat.parse(formatDateStr);
-            long epochTime = parsedDate.getTime() / 1000; // Convert to seconds
-            
-            // Store epoch timestamp in "updateddatesec"
-            fields.put("updateddatesec", epochTime);
-            
-            logger.info("Converted formatDate to epoch: " + epochTime);
-        } catch (ParseException e) {
-            logger.warning("Failed to parse formatDate: " + formatDateStr);
-        }
-    }
-
-      
-        
-         // Code Logic to copy "effDate" to "effDateSec"
-        Object formatEffDateField = fields.get("effDate");
-        if (formatDateField != null) {
-         fields.put("effDateSec", formatEffDateField); // Simply copy the value
-        }
-
-      // Retrieve "updateddatesec" field
-    Object updatedDateSecField = fields.get("updateddatesec");
-
-    if (updatedDateSecField != null) {
-        try {
-            // Convert updateddatesec from String/Number to long
-            long epochTime = Long.parseLong(updatedDateSecField.toString());
-
-            // Convert epoch time to MM-dd-yyyy format
-            SimpleDateFormat outputFormat = new SimpleDateFormat("MM-dd-yyyy");
-            outputFormat.setTimeZone(TimeZone.getTimeZone("UTC")); // Ensure consistency in time zone
-            String formattedDate = outputFormat.format(new Date(epochTime * 1000)); // Convert to milliseconds
-
-            // Store in lastupdateddate while retaining updateddatesec
-            fields.put("lastupdateddate", formattedDate);
-            logger.info("Converted updateddatesec: " + epochTime + " to lastupdateddate: " + formattedDate);
-
-        } catch (NumberFormatException e) {
-            logger.warning("Invalid epoch format for updateddatesec: " + updatedDateSecField);
-        }
-    }
-    
-       // Retrieve "effDateSec" field
-    Object effDateSecField = fields.get("effDateSec");
-
-    if (effDateSecField != null) {
-        try {
-            // Convert effDateSec from String/Number to long
-            long epochTime = Long.parseLong(effDateSecField.toString());
-
-            // Convert epoch time to dd/MM/yyyy format
-            SimpleDateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy");
-            outputFormat.setTimeZone(TimeZone.getTimeZone("UTC")); // Ensure consistency in time zone
-            String formattedDate = outputFormat.format(new Date(epochTime * 1000)); // Convert to milliseconds
-
-            // Store in effectivedatefilter while retaining effDateSec
-            fields.put("effectivedatefilter", formattedDate);
-            logger.info("Converted effDateSec: " + epochTime + " to effectivedatefilter: " + formattedDate);
-
-        } catch (NumberFormatException e) {
-            logger.warning("Invalid epoch format for effDateSec: " + effDateSecField);
-        }
-    }
-     //document-url field
-    Object urlField = fields.get("url");
-    Object contentField = fields.get("content"); // Assuming <content> is stored as "content"
-
-    if (urlField != null && contentField != null) {
-        String url = urlField.toString();
-        String documentUrl = null;
-
-        // Define the patterns to match
-        String[] urlPatterns = {
-            ".*ewdtpaovp11.*",
-            ".*ewdtpaovp01.*",
-            ".*ewdsacovn58.*",
-            ".*Ewdfdcovp11.*",
-            ".*ewdfdcovp11.*"
-        };
-
-        // Check if the URL matches any of the predefined patterns
-        for (String pattern : urlPatterns) {
-            if (Pattern.matches(pattern, url)) {
-                documentUrl = url; // If matched, store the URL in document-url
-
-                // Copy the entire content node structure
-                fields.put("document-content", contentField);
-                break;
-            }
-        }
-
-        // Add document-url field while keeping the original url field
-        fields.put("document-url", documentUrl);
-    }
-    // Retrieve the EFFECTIVEDATE field
-    Object effectiveDateField = fields.get("EFFECTIVEDATE");
-
-    if (effectiveDateField != null) {
-        String effectiveDate = effectiveDateField.toString();
-        String effDate;
-
-        if (!effectiveDate.contains(".")) {
-            effDate = effectiveDate.split(" ")[0]; // Get the part before the first space
-        } else {
-            effDate = effectiveDate.split("\\.")[0]; // Get the part before the first period
-        }
-
-        // Store the extracted date while retaining the original EFFECTIVEDATE field
-        fields.put("effDate", effDate);
-    } 
-
-   // Process and store document title
-   Object docTitleField = fields.get("docTitle");
-if (docTitleField != null) {
-    String docTitle = docTitleField.toString();
-
-    // Add title field while keeping original docTitle
-    fields.put("title", docTitle);
-}
-
-//last-modified date
-Object lastUpdatedDateField = fields.get("lastupdateddate");
-if (lastUpdatedDateField != null) {
-    String lastUpdatedDate = lastUpdatedDateField.toString();
-
-    // Add last-modified field while keeping original lastupdateddate
-    fields.put("last-modified", lastUpdatedDate);
-}
-//xxrole field
-Object roleField = fields.get("role");
-if (roleField != null) {
-    String role = roleField.toString();
-
-    // Add xxrole field while keeping original role
-    fields.put("xxrole", role);
-}
-
-//xxbgorup field
-Object businessGroupField = fields.get("businessgroup");
-if (businessGroupField != null) {
-    String businessGroup = businessGroupField.toString();
-
-    // Add xxbgroup field while keeping original businessgroup
-    fields.put("xxbgroup", businessGroup);
-}
-// Creating a new field "enqueueurl" with crawl URL options
-Map<String, Object> enqueueUrl = new HashMap<>();
-
-// Adding curl options
-Map<String, String> curlOptions = new HashMap<>();
-curlOptions.put("default-allow", "allow");
-curlOptions.put("max-hops", "0");
-
-// Wrapping the curl options inside a crawl-url structure
-enqueueUrl.put("crawl-url", Collections.singletonMap("curl-options", curlOptions));
-
-// Storing the enqueueUrl field while retaining existing fields
-fields.put("enqueueurl", enqueueUrl);
-
-        // Process document content
-        CrawlerPluginContent content = document.getContent();
-        if (isTextContent(fields, content)) {
-            replaceContent(crawlUrl, content);
-        } else if (isCSVContent(fields, content)) {
-            document.setContent(null);
-        } else if (content == null) {
-            addNewContent(crawlUrl, document);
-        }
-    }
-    }
-
-
-    private boolean isTextContent(Map<String, Object> fields, CrawlerPluginContent content) {
-        return isContent(fields, content, "text/plain", ".txt");
-    }
-
-    private boolean isCSVContent(Map<String, Object> fields, CrawlerPluginContent content) {
-        return isContent(fields, content, "text/csv", ".csv");
-    }
-
-    private boolean isContent(Map<String, Object> fields, CrawlerPluginContent content, String contentType, String extension) {
-        if (content == null) return false;
-        if (content.getContentType() != null && content.getContentType().equals(contentType)) return true;
-
-        Object extensionField = fields.get("__$Extension$__");
-        if (extensionField != null && extensionField.toString().equals(extension)) return true;
-
-        return false;
-    }
-
-    private void replaceContent(String crawlUrl, CrawlerPluginContent content) throws CrawlerPluginException {
-        Charset charset = content.getCharset();
-        if (charset == null) {
-            charset = StandardCharsets.UTF_8;
-        }
-
-        try (
-            InputStream inputStream = content.getInputStream();
-            PrintWriter writer = new PrintWriter(new OutputStreamWriter(content.getOutputStream()))) {
-
-            LineIterator lines = IOUtils.lineIterator(inputStream, charset);
-            while (lines.hasNext()) {
-                String line = lines.next().replaceAll("IBM", "International Business Machines");
-                writer.println(line);
-            }
-
-            content.setCharset(StandardCharsets.UTF_8);
-
-        } catch (IOException e) {
-            throw new CrawlerPluginException(String.format("The document %s cannot be updated by the crawler plugin.", crawlUrl), e);
-        }
-    }
-
-    private void addNewContent(String crawlUrl, CrawlerPluginDocument document) throws CrawlerPluginException {
-        Map<String, Object> fields = document.getFields();
-        if (!fields.containsKey("__$ContentURL$__")) return;
-
-        String contentUrl = (String) fields.get("__$ContentURL$__");
-        CrawlerPluginContent pluginContent = document.newContent();
-
-        try (CloseableHttpClient httpclient = HttpClients.createDefault();
-             CloseableHttpResponse response = httpclient.execute(new HttpGet(contentUrl))) {
-
-            if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
-                HttpEntity entity = response.getEntity();
-                try (InputStream inputStream = entity.getContent();
-                     OutputStream outputStream = pluginContent.getOutputStream()) {
-
-                    IOUtils.copy(inputStream, outputStream);
+                String formatDate;
+                if (!updatedDate.contains(".")) {
+                    formatDate = updatedDate.split(" ")[0]; // Get part before space
+                } else {
+                    formatDate = updatedDate.split("\\.")[0]; // Get part before period
                 }
 
-                pluginContent.setContentType(entity.getContentType() != null ? entity.getContentType().getValue() : null);
-                pluginContent.setCharset(entity.getContentEncoding() != null ? Charset.forName(entity.getContentEncoding().getValue()) : null);
-            }
+                logger.info("Extracted formatDate: " + formatDate);
 
-        } catch (IOException e) {
-            throw new CrawlerPluginException(String.format("The document %s cannot be updated by the crawler plugin.", crawlUrl), e);
+                // Add formatted date while keeping original updatedDate
+                fields.put("formatDate", formatDate);
+                logger.info("Updated fields map with formatDate: " + fields);
+            } catch (NumberFormatException e) {
+                logger.log(Level.SEVERE, "Error parsing lastupdateddate to long: " + updatedDateField, e);
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "Unexpected error while processing lastupdateddate", e);
+            }
+        } else {
+            logger.warning("No lastupdateddate found in fields map.");
         }
 
-        document.setContent(pluginContent);
+      // "updateddatesec" field
+        Object lastUpdatedDateSecField = fields.get("lastupdateddatesec");
+
+        if (lastUpdatedDateSecField != null) {
+            // Directly copy lastupdateddatesec to updateddatesec
+            fields.put("updateddatesec", lastUpdatedDateSecField);
+
+            logger.info("Copied lastupdateddatesec: " + lastUpdatedDateSecField + " to updateddatesec.");
+        } else {
+            logger.warning("No lastupdateddatesec found in fields map.");
+        }
+    
+       //  "effDateSec" field
+        Object effectiveDateField = fields.get("effectivedate");
+
+        if (effectiveDateField != null) {
+            // Directly copy effectivedate to offDateSec
+            fields.put("effDateSec", effectiveDateField);
+
+            logger.info("Copied effectivedate: " + effectiveDateField + " to offDateSec.");
+        } else {
+            logger.warning("No effectivedate found in fields map.");
+        }
+
+        // lastupdateddate Field
+        Object updatedDateSecField = fields.get("updateddatesec");
+
+if (updatedDateSecField != null) {
+    try {
+        // Ensure the value is treated as a Long (epoch format)
+        Long epochTime = Long.parseLong(updatedDateSecField.toString());
+
+        // Set the lastupdateddate field with the same epoch time
+        fields.put("lastupdateddate", epochTime);
+
+        logger.info("Copied updateddatesec: " + epochTime + " to lastupdateddate.");
+    } catch (NumberFormatException e) {
+        logger.warning("Invalid epoch format for updateddatesec: " + updatedDateSecField);
     }
+} else {
+    logger.warning("No updateddatesec found in fields map.");
+}
+
+
+
+        //effectivedatefilter Field
+        Object effDateSecField = fields.get("effDateSec");
+
+        if (effDateSecField != null) {
+            try {
+                // Convert effDateSec from String/Number to long
+                long epochTime = Long.parseLong(effDateSecField.toString());
+
+                // Convert epoch time to MM/dd/yyyy format
+                SimpleDateFormat outputFormat = new SimpleDateFormat("MM/dd/yyyy");
+                outputFormat.setTimeZone(TimeZone.getTimeZone("UTC")); // Ensure consistency in time zone
+                String formattedDate = outputFormat.format(new Date(epochTime * 1000)); // Convert to milliseconds
+
+                // Store in effectivedatefilter while retaining effDateSec
+                fields.put("effectivedatefilter", formattedDate);
+
+                logger.info("Converted effDateSec: " + epochTime + " to effectivedatefilter: " + formattedDate);
+            } catch (NumberFormatException e) {
+                logger.warning("Invalid epoch format for effDateSec: " + effDateSecField);
+            }
+        } else {
+            logger.warning("No effDateSec found in fields map.");
+        }
+
+     //document-url field
+    // Object urlField = fields.get("url");
+    // Object contentField = fields.get("content"); // Assuming <content> is stored as "content"
+
+    // if (urlField != null && contentField != null) {
+    //     String url = urlField.toString();
+    //     String documentUrl = null;
+
+    //     // Define the patterns to match
+    //     String[] urlPatterns = {
+    //         ".*ewdtpaovp11.*",
+    //         ".*ewdtpaovp01.*",
+    //         ".*ewdsacovn58.*",
+    //         ".*Ewdfdcovp11.*",
+    //         ".*ewdfdcovp11.*"
+    //     };
+
+    //     // Check if the URL matches any of the predefined patterns
+    //     for (String pattern : urlPatterns) {
+    //         if (Pattern.matches(pattern, url)) {
+    //             documentUrl = url; // If matched, store the URL in document-url
+
+    //             // Copy the entire content node structure
+    //             fields.put("document-content", contentField);
+    //             break;
+    //         }
+    //     }
+
+    //     // Add document-url field while keeping the original url field
+    //     fields.put("document-url", documentUrl);
+    // }
+
+
+    // effDate field
+    Object effectiveDateValue = fields.get("effectivedate");
+
+    if (effectiveDateValue != null) {
+        try {
+            logger.info("Received effectivedate: " + effectiveDateValue);
+
+            long epochTime = Long.parseLong(effectiveDateValue.toString()); // Convert epoch to long
+            String formattedDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(epochTime)); // Convert to formatted date
+
+            logger.info("Converted epoch to formatted date: " + formattedDate);
+
+            String effDate;
+            if (!formattedDate.contains(".")) {
+                effDate = formattedDate.split(" ")[0]; // Get part before space
+            } else {
+                effDate = formattedDate.split("\\.")[0]; // Get part before period
+            }
+
+            logger.info("Extracted effDate: " + effDate);
+
+            // Add formatted date while keeping original effectivedate
+            fields.put("effDate", effDate);
+            logger.info("Updated fields map with effDate: " + fields);
+        } catch (NumberFormatException e) {
+            logger.log(Level.SEVERE, "Error parsing effectivedate to long: " + effectiveDateValue, e);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Unexpected error while processing effectivedate", e);
+        }
+    } else {
+        logger.warning("No effectivedate found in fields map.");
+    }
+
+   // title field
+//    Object docTitleField = fields.get("docTitle");
+// if (docTitleField != null) {
+//     String docTitle = docTitleField.toString();
+
+//     // Add title field while keeping original docTitle
+//     fields.put("title", docTitle);
+// }
+
+    //last-modified date
+    Object lastUpdatedDateField = fields.get("lastupdateddate");
+
+        if (lastUpdatedDateField != null) {
+            logger.info("Copying lastupdateddate to last-modified: " + lastUpdatedDateField);
+
+            // Copy value without modification
+            fields.put("last-modified", lastUpdatedDateField);
+
+            logger.info("Updated fields map with last-modified: " + fields);
+        } else {
+            logger.warning("No lastupdateddate found in fields map.");
+        }
+
+           // xxrole field
+           Object roleField = fields.get("role");
+           if (roleField != null) {
+               String role = roleField.toString();
+               fields.put("xxrole", role);
+               logger.info("Copied role to xxrole: " + role);
+           } else {
+               logger.warning("No role field found in fields map.");
+           }
+   
+           // xxbgroup field
+           Object businessGroupField = fields.get("businessgroup");
+           if (businessGroupField != null) {
+               String businessGroup = businessGroupField.toString();
+               fields.put("xxbgroup", businessGroup);
+               logger.info("Copied businessgroup to xxbgroup: " + businessGroup);
+           } else {
+               logger.warning("No businessgroup field found in fields map.");
+           }
+
+
+// //Creating a new field "enqueueurl" with crawl URL options
+// Map<String, Object> enqueueUrl = new HashMap<>();
+
+// // Adding curl options
+// Map<String, String> curlOptions = new HashMap<>();
+// curlOptions.put("default-allow", "allow");
+// curlOptions.put("max-hops", "0");
+
+// // Wrapping the curl options inside a crawl-url structure
+// enqueueUrl.put("crawl-url", Collections.singletonMap("curl-options", curlOptions));
+
+// // Storing the enqueueUrl field while retaining existing fields
+// fields.put("enqueueurl", enqueueUrl);
+//     }
+//        // Process document content
+//         CrawlerPluginContent content = document.getContent();
+//         if (isTextContent(fields, content)) {
+//             replaceContent(crawlUrl, content);
+//         } else if (isCSVContent(fields, content)) {
+//             document.setContent(null);
+//         } else if (content == null) {
+//             addNewContent(crawlUrl, document);
+//         }
+    }
+    
+
+
+    // private boolean isTextContent(Map<String, Object> fields, CrawlerPluginContent content) {
+    //     return isContent(fields, content, "text/plain", ".txt");
+    // }
+
+    // private boolean isCSVContent(Map<String, Object> fields, CrawlerPluginContent content) {
+    //     return isContent(fields, content, "text/csv", ".csv");
+    // }
+
+    // private boolean isContent(Map<String, Object> fields, CrawlerPluginContent content, String contentType, String extension) {
+    //     if (content == null) return false;
+    //     if (content.getContentType() != null && content.getContentType().equals(contentType)) return true;
+
+    //     Object extensionField = fields.get("__$Extension$__");
+    //     if (extensionField != null && extensionField.toString().equals(extension)) return true;
+
+    //     return false;
+    // }
+
+    // private void replaceContent(String crawlUrl, CrawlerPluginContent content) throws CrawlerPluginException {
+    //     Charset charset = content.getCharset();
+    //     if (charset == null) {
+    //         charset = StandardCharsets.UTF_8;
+    //     }
+
+    //     try (
+    //         InputStream inputStream = content.getInputStream();
+    //         PrintWriter writer = new PrintWriter(new OutputStreamWriter(content.getOutputStream()))) {
+
+    //         LineIterator lines = IOUtils.lineIterator(inputStream, charset);
+    //         while (lines.hasNext()) {
+    //             String line = lines.next().replaceAll("IBM", "International Business Machines");
+    //             writer.println(line);
+    //         }
+
+    //         content.setCharset(StandardCharsets.UTF_8);
+
+    //     } catch (IOException e) {
+    //         throw new CrawlerPluginException(String.format("The document %s cannot be updated by the crawler plugin.", crawlUrl), e);
+    //     }
+    // }
+
+    // private void addNewContent(String crawlUrl, CrawlerPluginDocument document) throws CrawlerPluginException {
+    //     Map<String, Object> fields = document.getFields();
+    //     if (!fields.containsKey("__$ContentURL$__")) return;
+
+    //     String contentUrl = (String) fields.get("__$ContentURL$__");
+    //     CrawlerPluginContent pluginContent = document.newContent();
+
+    //     try (CloseableHttpClient httpclient = HttpClients.createDefault();
+    //          CloseableHttpResponse response = httpclient.execute(new HttpGet(contentUrl))) {
+
+    //         if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+    //             HttpEntity entity = response.getEntity();
+    //             try (InputStream inputStream = entity.getContent();
+    //                  OutputStream outputStream = pluginContent.getOutputStream()) {
+
+    //                 IOUtils.copy(inputStream, outputStream);
+    //             }
+
+    //             pluginContent.setContentType(entity.getContentType() != null ? entity.getContentType().getValue() : null);
+    //             pluginContent.setCharset(entity.getContentEncoding() != null ? Charset.forName(entity.getContentEncoding().getValue()) : null);
+    //         }
+
+    //     } catch (IOException e) {
+    //         throw new CrawlerPluginException(String.format("The document %s cannot be updated by the crawler plugin.", crawlUrl), e);
+    //     }
+
+    //     document.setContent(pluginContent);
+    // }
     
     @Override
     public void term() throws CrawlerPluginException {
