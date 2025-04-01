@@ -103,7 +103,7 @@ public class SampleCrawlerPlugin implements CrawlerPlugin {
         // }
 
         // "formatDate" field
-        Object updatedDateField = fields.get("lastupdateddate");
+        Object updatedDateField = fields.get("LASTUPDATEDDATE");
 
         if (updatedDateField != null) {
             try {
@@ -124,7 +124,7 @@ public class SampleCrawlerPlugin implements CrawlerPlugin {
                 logger.info("Extracted formatDate: " + formatDate);
 
                 // Add formatted date while keeping original updatedDate
-                fields.put("formatDate", formatDate);
+                fields.put("FORMATDATE", formatDate);
                 logger.info("Updated fields map with formatDate: " + fields);
             } catch (NumberFormatException e) {
                 logger.log(Level.SEVERE, "Error parsing lastupdateddate to long: " + updatedDateField, e);
@@ -136,23 +136,23 @@ public class SampleCrawlerPlugin implements CrawlerPlugin {
         }
 
       // "updateddatesec" field
-        Object lastUpdatedDateSecField = fields.get("lastupdateddatesec");
+        Object lastUpdatedDateSecField = fields.get("LASTUPDATEDDATE");
 
         if (lastUpdatedDateSecField != null) {
             // Directly copy lastupdateddatesec to updateddatesec
-            fields.put("updateddatesec", lastUpdatedDateSecField);
+            fields.put("UPDATEDDATESEC", lastUpdatedDateSecField);
 
             logger.info("Copied lastupdateddatesec: " + lastUpdatedDateSecField + " to updateddatesec.");
         } else {
-            logger.warning("No lastupdateddatesec found in fields map.");
+            logger.warning("No lastupdateddate found in fields map.");
         }
     
        //  "effDateSec" field
-        Object effectiveDateField = fields.get("effectivedate");
+        Object effectiveDateField = fields.get("EFFECTIVEDATE");
 
         if (effectiveDateField != null) {
             // Directly copy effectivedate to offDateSec
-            fields.put("effDateSec", effectiveDateField);
+            fields.put("EFFDATESEC", effectiveDateField);
 
             logger.info("Copied effectivedate: " + effectiveDateField + " to offDateSec.");
         } else {
@@ -160,7 +160,7 @@ public class SampleCrawlerPlugin implements CrawlerPlugin {
         }
 
         // lastupdateddate Field
-        Object updatedDateSecField = fields.get("updateddatesec");
+        Object updatedDateSecField = fields.get("UPDATEDDATESEC");
 
 if (updatedDateSecField != null) {
     try {
@@ -181,7 +181,7 @@ if (updatedDateSecField != null) {
 
 
         //effectivedatefilter Field
-        Object effDateSecField = fields.get("effDateSec");
+        Object effDateSecField = fields.get("EFFDATESEC");
 
         if (effDateSecField != null) {
             try {
@@ -194,7 +194,7 @@ if (updatedDateSecField != null) {
                 String formattedDate = outputFormat.format(new Date(epochTime * 1000)); // Convert to milliseconds
 
                 // Store in effectivedatefilter while retaining effDateSec
-                fields.put("effectivedatefilter", formattedDate);
+                fields.put("EFFECTIVEDATEFILTER", formattedDate);
 
                 logger.info("Converted effDateSec: " + epochTime + " to effectivedatefilter: " + formattedDate);
             } catch (NumberFormatException e) {
@@ -238,7 +238,7 @@ if (updatedDateSecField != null) {
 
 
     // effDate field
-    Object effectiveDateValue = fields.get("effectivedate");
+    Object effectiveDateValue = fields.get("EFFECTIVEDATE");
 
     if (effectiveDateValue != null) {
         try {
@@ -280,13 +280,13 @@ if (updatedDateSecField != null) {
 // }
 
     //last-modified date
-    Object lastUpdatedDateField = fields.get("lastupdateddate");
+    Object lastUpdatedDateField = fields.get("LASTUPDATEDDATE");
 
         if (lastUpdatedDateField != null) {
             logger.info("Copying lastupdateddate to last-modified: " + lastUpdatedDateField);
 
             // Copy value without modification
-            fields.put("last-modified", lastUpdatedDateField);
+            fields.put("LAST-MODIFIED", lastUpdatedDateField);
 
             logger.info("Updated fields map with last-modified: " + fields);
         } else {
@@ -294,7 +294,7 @@ if (updatedDateSecField != null) {
         }
 
            // xxrole field
-           Object roleField = fields.get("role");
+           Object roleField = fields.get("ROLE");
            if (roleField != null) {
                String role = roleField.toString();
                fields.put("xxrole", role);
@@ -304,7 +304,7 @@ if (updatedDateSecField != null) {
            }
    
            // xxbgroup field
-           Object businessGroupField = fields.get("businessgroup");
+           Object businessGroupField = fields.get("BUSINESSGROUP");
            if (businessGroupField != null) {
                String businessGroup = businessGroupField.toString();
                fields.put("xxbgroup", businessGroup);
