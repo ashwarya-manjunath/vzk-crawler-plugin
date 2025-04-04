@@ -19,6 +19,10 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Map;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.time.LocalDate;
@@ -36,10 +40,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashMap;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.logging.Logger;
 import java.util.TimeZone;
 import java.util.logging.Level;
@@ -123,6 +124,33 @@ public class SampleCrawlerPlugin implements CrawlerPlugin {
         //     fields.put("_$Authors$_", authorList);
         // }
 
+// xxrole field
+{
+    Object roleField = fields.get("ROLE");
+    logger.info("Fetched ROLE field: " + roleField);  // Added logger after fetching role field
+    if (roleField != null) {
+        String role = roleField.toString();
+        fields.put("XXROLE", role);
+        logger.info("Copied role to xxrole: " + role);
+    } else {
+        logger.warning("No role field found in fields map.");
+    }
+}
+
+// xxbgroup field
+{
+    Object businessGroupField = fields.get("BUSINESSGROUP");
+    logger.info("Fetched BUSINESSGROUP field: " + businessGroupField);  // Added logger after fetching businessgroup field
+    if (businessGroupField != null) {
+        String businessGroup = businessGroupField.toString();
+        fields.put("XXBGROUP", businessGroup);
+        logger.info("Copied businessgroup to xxbgroup: " + businessGroup);
+    } else {
+        logger.warning("No businessgroup field found in fields map.");
+    }
+}
+
+
 // "formatDate" field
 {
 Object updatedDateField = fields.get("LASTUPDATEDDATE");
@@ -131,7 +159,7 @@ if (updatedDateField != null) {
     String dateStr = updatedDateField.toString().trim();
     logger.info("Received LASTUPDATEDDATE: " + dateStr);
 
-    // Define the input date format (e.g., "Tue Apr 12 01:00:00 GMT 2005")
+    // Define the input date format ("Tue Apr 12 01:00:00 GMT 2005")
     DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss z yyyy", Locale.ENGLISH);
     DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -159,49 +187,83 @@ if (updatedDateField != null) {
 {
     Object lastUpdatedDateSecField = fields.get("LASTUPDATEDDATE");
 
-    if (lastUpdatedDateSecField != null) {
-        // Directly copy lastupdateddatesec to updateddatesec
-        fields.put("UPDATEDDATESEC", lastUpdatedDateSecField);
+if (lastUpdatedDateSecField != null) {
+    try {
+        // Define the input date format
+        SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy");
+        sdf.setTimeZone(TimeZone.getTimeZone("GMT"));  // Set timezone to GMT
 
-        logger.info("Copied lastupdateddatesec: " + lastUpdatedDateSecField + " to updateddatesec.");
-    } else {
-        logger.warning("No lastupdateddate found in fields map.");
+        // Parse the string into a Date object
+        Date parsedDate = sdf.parse(lastUpdatedDateSecField.toString());
+
+        // Convert to epoch seconds
+        long epochSeconds = parsedDate.getTime() / 1000;
+
+        // Store the value in the field map
+        fields.put("UPDATEDDATESEC", epochSeconds);
+
+        logger.info("Parsed LASTUPDATEDDATE: " + lastUpdatedDateSecField + " to epoch seconds: " + epochSeconds);
+    } catch (ParseException e) {
+        logger.severe("Failed to parse LASTUPDATEDDATE: " + lastUpdatedDateSecField + " due to: " + e.getMessage());
     }
+} else {
+    logger.warning("No LASTUPDATEDDATE found in fields map.");
+}
 }
 
 // "effDateSec" field
 {
-    Object effectiveDateField = fields.get("EFFECTIVEDATE");
+    
+Object rawEffectiveDateValue = fields.get("EFFECTIVEDATE");
 
-    if (effectiveDateField != null) {
-        // Directly copy effectivedate to offDateSec
-        fields.put("EFFDATESEC", effectiveDateField);
+if (rawEffectiveDateValue != null) {
+     // Log the EFFECTIVEDATE value before parsing
+        logger.info("Retrieved EFFECTIVEDATE from fields: " + rawEffectiveDateValue);
+    try {
+        // Define the input date format
+        SimpleDateFormat effectiveDateFormat = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy");
+        effectiveDateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));  // Ensure GMT timezone
 
-        logger.info("Copied effectivedate: " + effectiveDateField + " to offDateSec.");
-    } else {
-        logger.warning("No effectivedate found in fields map.");
+        // Parse the date string into a Date object
+        Date effectiveParsedDate = effectiveDateFormat.parse(rawEffectiveDateValue.toString());
+
+        // Convert to epoch seconds
+        long effectiveEpochTime = effectiveParsedDate.getTime() / 1000;
+
+        // Store the epoch time in the map
+        fields.put("EFFDATESEC", effectiveEpochTime);
+
+        logger.info("Parsed EFFECTIVEDATE: " + rawEffectiveDateValue + " to epoch seconds: " + effectiveEpochTime);
+    } catch (ParseException ex) {
+        logger.severe("Failed to parse EFFECTIVEDATE: " + rawEffectiveDateValue + " due to: " + ex.getMessage());
     }
+} else {
+    logger.warning("No EFFECTIVEDATE found in fields map.");
+}
 }
 
 // lastupdateddate Field
 {
-    Object updatedDateSecField = fields.get("UPDATEDDATESEC");
+Object updatedDateSecField = fields.get("UPDATEDDATESEC");
 
-    if (updatedDateSecField != null) {
-        try {
-            // Ensure the value is treated as a Long (epoch format)
-            Long epochTime = Long.parseLong(updatedDateSecField.toString());
+if (updatedDateSecField != null) {
+    // Log the raw UPDATEDDATESEC value before parsing
+    logger.info("Retrieved UPDATEDDATESEC from fields: " + updatedDateSecField);
 
-            // Set the lastupdateddate field with the same epoch time
-            fields.put("LASTUPDATEDDATE", epochTime);
+    try {
+        // Ensure the value is treated as a Long (epoch format)
+        Long epochTime = Long.parseLong(updatedDateSecField.toString());
 
-            logger.info("Copied updateddatesec: " + epochTime + " to lastupdateddate.");
-        } catch (NumberFormatException e) {
-            logger.warning("Invalid epoch format for updateddatesec: " + updatedDateSecField);
-        }
-    } else {
-        logger.warning("No updateddatesec found in fields map.");
+        // Set the LASTUPDATEDDATE field with the same epoch time
+        fields.put("LASTUPDATEDDATE", epochTime);
+
+        logger.info("Copied UPDATEDDATESEC: " + epochTime + " to LASTUPDATEDDATE.");
+    } catch (NumberFormatException e) {
+        logger.warning("Invalid epoch format for UPDATEDDATESEC: " + updatedDateSecField);
     }
+} else {
+    logger.warning("No UPDATEDDATESEC found in fields map.");
+}
 }
 
 // effectivedatefilter Field
@@ -209,43 +271,44 @@ if (updatedDateField != null) {
     Object effDateSecField = fields.get("EFFDATESEC");
 
     if (effDateSecField != null) {
-        String dateStr = effDateSecField.toString().trim();
+    String rawEpochValue = effDateSecField.toString().trim();
 
-        // Log the received value before processing
-        logger.info("Received EFFDATESEC: " + dateStr);
+    // Logger BEFORE conversion
+    logger.info("EFFDATESEC (raw input before epoch conversion): " + rawEpochValue);
 
-        // Check if the value is numeric (epoch format)
-        if (!dateStr.matches("\\d+")) {
-            logger.warning("EFFDATESEC is not in epoch format: " + dateStr);
-            return; // Exit early if it's not a valid epoch timestamp
-        }
-
-        try {
-            long epochTime = Long.parseLong(dateStr); // Convert to long
-
-            // Log conversion before processing further
-            logger.info("Parsed epoch time: " + epochTime);
-
-            // Convert epoch to LocalDateTime (UTC)
-            LocalDateTime dateTime = Instant.ofEpochSecond(epochTime)
-                                            .atZone(ZoneId.of("UTC"))
-                                            .toLocalDateTime();
-
-            // Format the date to "MM/dd/yyyy"
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
-            String formattedDate = dateTime.format(formatter);
-
-            logger.info("Converted EFFDATESEC: " + epochTime + " to EFFECTIVEDATEFILTER: " + formattedDate);
-
-            // Store formatted date while keeping original effDateSec
-            fields.put("EFFECTIVEDATEFILTER", formattedDate);
-
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Unexpected error while processing EFFDATESEC", e);
-        }
-    } else {
-        logger.warning("No EFFDATESEC found in fields map.");
+    // Check if the value is numeric (epoch format)
+    if (!rawEpochValue.matches("\\d+")) {
+        logger.warning("EFFDATESEC is not in epoch format: " + rawEpochValue);
+        return; // Exit early if it's not a valid epoch timestamp
     }
+
+    try {
+        long epochTime = Long.parseLong(rawEpochValue); // Convert to long
+
+        // Log conversion before processing further
+        logger.info("Parsed epoch time: " + epochTime);
+
+        // Convert epoch to LocalDateTime (UTC)
+        LocalDateTime dateTime = Instant.ofEpochSecond(epochTime)
+                                        .atZone(ZoneId.of("UTC"))
+                                        .toLocalDateTime();
+
+        // Format the date to "MM/dd/yyyy"
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+        String formattedDate = dateTime.format(formatter);
+
+        logger.info("Converted EFFDATESEC: " + epochTime + " to EFFECTIVEDATEFILTER: " + formattedDate);
+
+        // Store formatted date while keeping original effDateSec
+        fields.put("EFFECTIVEDATEFILTER", formattedDate);
+
+    } catch (Exception e) {
+        logger.log(Level.SEVERE, "Unexpected error while processing EFFDATESEC", e);
+    }
+} else {
+    logger.warning("No EFFDATESEC found in fields map.");
+}
+
 }
 
      //document-url field
@@ -283,37 +346,38 @@ if (updatedDateField != null) {
 
     // effDate field
     {
-      Object effectiveDateValue = fields.get("EFFECTIVEDATE");
+        Object effectiveDateValue = fields.get("EFFECTIVEDATE");
 
-      if (effectiveDateValue != null) {
-          String dateStr = effectiveDateValue.toString().trim();
-
-          // Log the received value before processing
-          logger.info("Received EFFECTIVEDATE: " + dateStr);
-
-          // Define the input date format (e.g., "Tue Apr 12 01:00:00 GMT 2005")
-          DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss z yyyy", Locale.ENGLISH);
-          DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
-          try {
-              // Parse the input date string
-              LocalDate parsedDate = LocalDate.parse(dateStr, inputFormatter);
-
-              // Convert to desired format
-              String effDate = parsedDate.format(outputFormatter);
-
-              logger.info("Extracted effDate: " + effDate);
-
-              // Add formatted date while keeping original EFFECTIVEDATE
-              fields.put("EFFDATE", effDate);
-              logger.info("Updated fields map with effDate: " + fields);
-
-          } catch (DateTimeParseException e) {
-              logger.log(Level.SEVERE, "Error parsing EFFECTIVEDATE: " + dateStr, e);
-          }
-      } else {
-          logger.warning("No EFFECTIVEDATE found in fields map.");
-      }
+        if (effectiveDateValue != null) {
+            String rawEffectiveDateStr = effectiveDateValue.toString().trim();
+        
+            // 🚨 Logger BEFORE conversion
+            logger.info("EFFECTIVEDATE (raw input): " + rawEffectiveDateStr);
+        
+            // Define the input and output date formatters
+            DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss z yyyy", Locale.ENGLISH);
+            DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        
+            try {
+                // Parse the input date string
+                LocalDate parsedDate = LocalDate.parse(rawEffectiveDateStr, inputFormatter);
+        
+                // Convert to desired format
+                String effDate = parsedDate.format(outputFormatter);
+        
+                logger.info("Converted EFFECTIVEDATE to EFFDATE (yyyy-MM-dd): " + effDate);
+        
+                // Store formatted date
+                fields.put("EFFDATE", effDate);
+                logger.info("Updated fields map with EFFDATE: " + effDate);
+        
+            } catch (DateTimeParseException e) {
+                logger.log(Level.SEVERE, "Error parsing EFFECTIVEDATE: " + rawEffectiveDateStr, e);
+            }
+        } else {
+            logger.warning("No EFFECTIVEDATE found in fields map.");
+        }
+        
     }
    // title field
 //    Object docTitleField = fields.get("docTitle");
@@ -326,41 +390,25 @@ if (updatedDateField != null) {
 
     //last-modified date
     {
-    Object lastUpdatedDateField = fields.get("LASTUPDATEDDATE");
-
+        Object lastUpdatedDateField = fields.get("LASTUPDATEDDATE");
+    
         if (lastUpdatedDateField != null) {
-            logger.info("Copying lastupdateddate to last-modified: " + lastUpdatedDateField);
-
+            // Log the raw LASTUPDATEDDATE value before copying
+            logger.info("Received LASTUPDATEDDATE (epoch format): " + lastUpdatedDateField);
+    
+            // Log copying process
+            logger.info("Copying LASTUPDATEDDATE to LAST-MODIFIED...");
+    
             // Copy value without modification
             fields.put("LAST-MODIFIED", lastUpdatedDateField);
-
-            logger.info("Updated fields map with last-modified: " + fields);
+    
+            // Confirm update in map
+            logger.info("Updated fields map with LAST-MODIFIED: " + lastUpdatedDateField);
         } else {
-            logger.warning("No lastupdateddate found in fields map.");
+            logger.warning("No LASTUPDATEDDATE found in fields map.");
         }
     }
-           // xxrole field
         
-        {   Object roleField = fields.get("ROLE");
-           if (roleField != null) {
-               String role = roleField.toString();
-               fields.put("XXROLE", role);
-               logger.info("Copied role to xxrole: " + role);
-           } else {
-               logger.warning("No role field found in fields map.");
-           }
-        }
-           // xxbgroup field
-           {
-           Object businessGroupField = fields.get("BUSINESSGROUP");
-           if (businessGroupField != null) {
-               String businessGroup = businessGroupField.toString();
-               fields.put("XXBGROUP", businessGroup);
-               logger.info("Copied businessgroup to xxbgroup: " + businessGroup);
-           } else {
-               logger.warning("No businessgroup field found in fields map.");
-           }
-        }
 
 // //Creating a new field "enqueueurl" with crawl URL options
 // Map<String, Object> enqueueUrl = new HashMap<>();
